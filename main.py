@@ -188,7 +188,7 @@ def augmentation_multivariate(x, y, augs=['non', 'jit']):
 def main():
     print("正在讀取資料...")
     df = pd.read_csv(DATA_FILE_PATH)
-    df['timestamp'] = pd.to_datetime(df['timestamp'])
+    df['timestamp'] = pd.to_datetime(df['datetime'])
     df = df.set_index('timestamp')
 
     print("正在準備訓練與測試資料集...")

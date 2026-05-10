@@ -11,13 +11,23 @@ def cautrans_enc(input_shape, head_size, num_heads, num_f, dilations, k_size, dr
     x = Dropout(dropout)(x)
     x = LayerNormalization(epsilon=1e-6)(x)
     res = x + inputs
-    # TCN
+    
+    # TCN (時間卷積網絡)
     x = res
     for d in dilations:
         x = Conv1D(filters=num_f, kernel_size=k_size, dilation_rate=d, padding='causal', activation='relu')(x)
         x = SpatialDropout1D(dropout)(x)
         x = LayerNormalization(epsilon=1e-06)(x)
+        
+    # --- 新增的修正片段 ---
+    # 若殘差(res)的維度與經過卷積後的維度(num_f)不同，
+    # 則透過 1x1 的 Conv1D 將其投影至相同的維度才能相加
+    if res.shape[-1] != num_f:
+        res = Conv1D(filters=num_f, kernel_size=1, padding='same')(res)
+    # ---------------------
+    
     x = x + res
+    
     # Map to latent space
     outputs = GlobalAveragePooling1D(data_format='channels_first')(x)
     return Model(inputs, outputs, name='encoder')
