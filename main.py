@@ -240,7 +240,7 @@ def main():
     s = time.time()
     model.fit(
         x_train_aug, y_train_aug, 
-        epochs=200, 
+        epochs=20, 
         batch_size=nb * num_views, 
         callbacks=[lr_schedule],
         verbose=1
@@ -266,7 +266,7 @@ def main():
     print("開始訓練下游 MLP 分類器...")
     classifier.fit(
         tr_feat, y_train_squeeze, 
-        epochs=200, 
+        epochs=20, 
         batch_size=64, 
         validation_split=0.1, 
         callbacks=[early_stop],
