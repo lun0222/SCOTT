@@ -5,6 +5,7 @@ import tensorflow as tf
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import ReduceLROnPlateau, EarlyStopping
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.metrics import precision_score, recall_score, f1_score
 
 # 匯入自定義的模型模組 (需確保 models.py 與 contrastive.py 在同目錄)
 import models
@@ -98,6 +99,8 @@ def supcon_loss(y_true, y_pred):
     t = tf.cast(temp, tf.float32)
     y_true = tf.convert_to_tensor(y_true)
     y_pred = tf.convert_to_tensor(y_pred)
+
+    y_true = tf.reshape(y_true, [-1, 1])
     
     mask = tf.math.equal(y_true, tf.transpose(y_true))
     mask = tf.cast(mask, tf.float32)
@@ -275,8 +278,22 @@ def main():
 
     # === 模型評估 ===
     print("\n========== 整體混合測試集評估 ==========")
-    loss, accuracy = classifier.evaluate(te_feat, np.squeeze(y_test), verbose=0)
+    y_test_squeeze = np.squeeze(y_test)
+    loss, accuracy = classifier.evaluate(te_feat, y_test_squeeze, verbose=0)
+    
+    # 取得整體測試集的預測標籤
+    y_pred_probs = classifier.predict(te_feat, verbose=0)
+    y_pred = np.argmax(y_pred_probs, axis=1)
+    
+    # 計算真正的整體 Macro 分數 (所有類別加總平均，只會出一個值)
+    macro_precision = precision_score(y_test_squeeze, y_pred, average='macro', zero_division=0)
+    macro_recall = recall_score(y_test_squeeze, y_pred, average='macro', zero_division=0)
+    macro_f1 = f1_score(y_test_squeeze, y_pred, average='macro', zero_division=0)
+    
     print(f"整體 Accuracy: {accuracy:.4f}")
+    print(f"整體 Macro Precision: {macro_precision:.4f}")
+    print(f"整體 Macro Recall: {macro_recall:.4f}")
+    print(f"整體 Macro F1: {macro_f1:.4f}")
 
     print("\n========== 各獨立測試時間段評估結果 ==========")
     evaluation_results = []
@@ -297,6 +314,7 @@ def main():
             feat_eval = model.encoder.predict(x_eval, verbose=0)
             eval_loss, eval_acc = classifier.evaluate(feat_eval, y_win, verbose=0)
             
+            # 刪除迴圈內多餘的 Macro 計算，只保留獨立準確率
             print(f"[{desc}] (真實類別: {label}):")
             print(f"  - 測試樣本數: {len(y_win)} 個 window")
             print(f"  - 獨立準確率: {eval_acc:.4f}\n")
@@ -314,9 +332,6 @@ def main():
     df_results = pd.DataFrame(evaluation_results)
     print("獨立測試完整報告：")
     print(df_results.to_string(index=False))
-    
-    # 儲存 CSV (可選)
-    # df_results.to_csv("test_results.csv", index=False)
 
 if __name__ == "__main__":
     main()
